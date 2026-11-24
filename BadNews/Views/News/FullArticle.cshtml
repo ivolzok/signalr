@@ -1,5 +1,7 @@
 ﻿@using BadNews.Elevation
 @using BadNews.BlazorComponents
+@using BadNews.Hubs
+@using System
 @model BadNews.Models.News.FullArticleModel
 
 <main role="main" class="container">
@@ -21,7 +23,17 @@
 
                 <div class="comments">
                     <h5>Комментарии</h5>
-                    @(await Html.RenderComponentAsync<Comments>(RenderMode.ServerPrerendered, new { ArticleId = Model.Article.Id }))
+                    @{
+                        // Use the server listener. The local HTTPS launch certificate is issued to localhost.
+                        var hubHost = Context.Request.IsHttps ? "localhost" : Context.Connection.LocalIpAddress?.ToString() ?? "localhost";
+                        var hubAddress = new UriBuilder(
+                            Context.Request.Scheme,
+                            hubHost,
+                            Context.Connection.LocalPort,
+                            Url.Content("~" + CommentsHub.Path)).Uri;
+                    }
+                    @(await Html.RenderComponentAsync<Comments>(RenderMode.ServerPrerendered,
+                        new { ArticleId = Model.Article.Id, HubAddress = hubAddress }))
                 </div>
             </div>
         </div>

@@ -1,7 +1,27 @@
 @using System
 @using System.Collections.Generic
+@using System.Threading.Tasks
+@using BadNews.Hubs
 @using BadNews.Repositories.Comments
+@using Microsoft.AspNetCore.SignalR.Client
+@using Microsoft.Extensions.Logging
 @inject CommentsRepository CommentsRepository
+@inject ILogger<Comments> Logger
+@implements IAsyncDisposable
+
+<label>
+    Пользователь <input @bind="userInput" />
+</label>
+<label>
+    Комментарий <input @bind="messageInput" />
+</label>
+<div>
+    <button type="button" @onclick="SendAsync" disabled="@(!IsConnected)">Отправить</button>
+</div>
+@if (errorMessage is not null)
+{
+    <p role="status">@errorMessage</p>
+}
 
 <ul>
     @foreach (var comment in comments)
@@ -11,13 +31,87 @@
 </ul>
 
 @code {
-    private IReadOnlyCollection<Comment> comments = Array.Empty<Comment>();
+    private List<Comment> comments = new();
+    private HubConnection hubConnection;
+    private string userInput = string.Empty;
+    private string messageInput = string.Empty;
+    private string errorMessage;
+    private bool disposed;
+
+    private bool IsConnected => hubConnection?.State == HubConnectionState.Connected;
 
     [Parameter]
     public Guid ArticleId { get; set; }
 
+    [Parameter]
+    public Uri HubAddress { get; set; }
+
     protected override void OnParametersSet()
     {
-        comments = CommentsRepository.GetComments(ArticleId);
+        comments = new List<Comment>(CommentsRepository.GetComments(ArticleId));
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(HubAddress)
+            .Build();
+
+        hubConnection.On<string, string>(CommentsHub.ReceiveCommentMethod, (user, message) => InvokeAsync(() =>
+        {
+            if (disposed)
+                return;
+
+            comments.Add(new Comment(user, message));
+            StateHasChanged();
+        }));
+        hubConnection.Closed += _ => InvokeAsync(() =>
+        {
+            if (disposed)
+                return;
+
+            errorMessage = "Соединение с комментариями потеряно.";
+            StateHasChanged();
+        });
+
+        try
+        {
+            await hubConnection.StartAsync();
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Could not connect to the comments hub.");
+            errorMessage = "Не удалось подключиться к комментариям.";
+        }
+
+        if (!disposed)
+            StateHasChanged();
+    }
+
+    private async Task SendAsync()
+    {
+        if (!IsConnected)
+            return;
+
+        errorMessage = null;
+        try
+        {
+            await hubConnection.InvokeAsync(nameof(CommentsHub.SendComment), userInput, messageInput);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Could not send a comment.");
+            errorMessage = "Не удалось отправить комментарий.";
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        disposed = true;
+        if (hubConnection is not null)
+            await hubConnection.DisposeAsync();
     }
 }

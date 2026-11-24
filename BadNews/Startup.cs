@@ -73,7 +73,7 @@ namespace BadNews
                     action = "StatusCode"
                 });
                 endpoints.MapControllerRoute("default", "{controller=News}/{action=Index}/{id?}");
-                endpoints.MapHub<CommentsHub>("/commentsHub");
+                endpoints.MapHub<CommentsHub>(CommentsHub.Path);
                 endpoints.MapBlazorHub();
             });
             app.MapWhen(context => context.Request.IsElevated(), branchApp =>
