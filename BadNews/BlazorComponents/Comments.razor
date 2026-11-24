@@ -1,0 +1,23 @@
+@using System
+@using System.Collections.Generic
+@using BadNews.Repositories.Comments
+@inject CommentsRepository CommentsRepository
+
+<ul>
+    @foreach (var comment in comments)
+    {
+        <li>@comment.User говорит: @comment.Value</li>
+    }
+</ul>
+
+@code {
+    private IReadOnlyCollection<Comment> comments = Array.Empty<Comment>();
+
+    [Parameter]
+    public Guid ArticleId { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        comments = CommentsRepository.GetComments(ArticleId);
+    }
+}
