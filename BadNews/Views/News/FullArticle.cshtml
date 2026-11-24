@@ -17,6 +17,11 @@
                     </form>
                 }
                 @Html.Raw(Model.Article.ContentHtml)
+
+                <div class="comments">
+                    <h5>Комментарии</h5>
+                    <ul id="comments"></ul>
+                </div>
             </div>
         </div>
 
@@ -32,3 +37,21 @@
         <a href="#">Наверх</a>
     </p>
 </footer>
+
+@section Scripts {
+    <script>
+        const commentsList = document.getElementById('comments');
+
+        function appendComment(user, message) {
+            const li = document.createElement("li");
+            li.textContent = `${user} говорит: ${message}`;
+            commentsList.appendChild(li);
+        }
+
+        $.get(`/api/news/@Model.Article.Id.ToString()/comments`, function(data) {
+            for (const comment of data.comments) {
+                appendComment(comment.user, comment.value);
+            }
+        });
+    </script>
+}
