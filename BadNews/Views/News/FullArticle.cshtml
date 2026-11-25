@@ -1,7 +1,6 @@
 ﻿@using BadNews.BlazorComponents
 @using BadNews.Elevation
 @model BadNews.Models.News.FullArticleModel
-@(await Html.RenderComponentAsync<Comments>(RenderMode.ServerPrerendered))
 
 <main role="main" class="container">
     <div class="row">
@@ -22,7 +21,9 @@
 
                 <div class="comments">
                     <h5>Комментарии</h5>
-                    <div id="comments"></div>
+                    <div id="comments">
+                        @(await Html.RenderComponentAsync<Comments>(RenderMode.ServerPrerendered))
+                    </div>
                 </div>
             </div>
         </div>
